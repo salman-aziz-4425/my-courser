@@ -1,43 +1,67 @@
-import uuid
-
-from qdrant_client import QdrantClient
-from qdrant_client.models import (
-    Distance,
-    PointStruct,
-    VectorParams,
-)
+import os
+import psycopg2
+from pgvector.psycopg2 import register_vector
 
 from mycoursor.config import Settings
 from mycoursor.indexer.chunker import Chunk
 
 
-UPSERT_BATCH = 100
+def get_connection(settings: Settings):
+    conn = psycopg2.connect(settings.database_url)
+    register_vector(conn)
+    return conn
 
 
-def get_client(settings: Settings) -> QdrantClient:
-    if settings.qdrant_api_key:
-        return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
-    return QdrantClient(url=settings.qdrant_url)
+def ensure_table(settings: Settings) -> None:
+    conn = get_connection(settings)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS code_chunks (
+                    id SERIAL PRIMARY KEY,
+                    file_path TEXT NOT NULL,
+                    start_line INTEGER NOT NULL,
+                    end_line INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    language TEXT DEFAULT '',
+                    embedding vector({settings.embedding_dim})
+                );
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_code_chunks_embedding
+                ON code_chunks USING ivfflat (embedding vector_cosine_ops)
+                WITH (lists = 100);
+            """)
+        conn.commit()
+    except psycopg2.errors.InvalidParameterValue:
+        conn.rollback()
+        with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS code_chunks (
+                    id SERIAL PRIMARY KEY,
+                    file_path TEXT NOT NULL,
+                    start_line INTEGER NOT NULL,
+                    end_line INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    language TEXT DEFAULT '',
+                    embedding vector({settings.embedding_dim})
+                );
+            """)
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def ensure_collection(settings: Settings) -> None:
-    client = get_client(settings)
-    collections = [c.name for c in client.get_collections().collections]
-    if settings.collection_name not in collections:
-        client.create_collection(
-            collection_name=settings.collection_name,
-            vectors_config=VectorParams(
-                size=settings.embedding_dim,
-                distance=Distance.COSINE,
-            ),
-        )
-
-
-def delete_collection(settings: Settings) -> None:
-    client = get_client(settings)
-    collections = [c.name for c in client.get_collections().collections]
-    if settings.collection_name in collections:
-        client.delete_collection(collection_name=settings.collection_name)
+def clear_table(settings: Settings) -> None:
+    conn = get_connection(settings)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM code_chunks;")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def upsert_chunks(
@@ -45,43 +69,45 @@ def upsert_chunks(
     vectors: list[list[float]],
     settings: Settings,
 ) -> int:
-    client = get_client(settings)
-    ensure_collection(settings)
-
-    points = []
-    for chunk, vector in zip(chunks, vectors):
-        point = PointStruct(
-            id=str(uuid.uuid4()),
-            vector=vector,
-            payload={
-                "file_path": chunk.file_path,
-                "start_line": chunk.start_line,
-                "end_line": chunk.end_line,
-                "text": chunk.text,
-                "language": chunk.language,
-            },
-        )
-        points.append(point)
-
-    for i in range(0, len(points), UPSERT_BATCH):
-        batch = points[i : i + UPSERT_BATCH]
-        client.upsert(
-            collection_name=settings.collection_name,
-            points=batch,
-        )
-
-    return len(points)
+    ensure_table(settings)
+    conn = get_connection(settings)
+    try:
+        with conn.cursor() as cur:
+            for chunk, vector in zip(chunks, vectors):
+                cur.execute(
+                    """
+                    INSERT INTO code_chunks (file_path, start_line, end_line, text, language, embedding)
+                    VALUES (%s, %s, %s, %s, %s, %s::vector)
+                    """,
+                    (
+                        chunk.file_path,
+                        chunk.start_line,
+                        chunk.end_line,
+                        chunk.text,
+                        chunk.language,
+                        str(vector),
+                    ),
+                )
+        conn.commit()
+        return len(chunks)
+    finally:
+        conn.close()
 
 
 def collection_info(settings: Settings) -> dict:
-    client = get_client(settings)
+    conn = get_connection(settings)
     try:
-        info = client.get_collection(settings.collection_name)
-        return {
-            "name": settings.collection_name,
-            "points_count": info.points_count,
-            "vectors_count": info.vectors_count,
-            "status": info.status.value if info.status else "unknown",
-        }
-    except Exception:
-        return {"name": settings.collection_name, "status": "not_found"}
+        with conn.cursor() as cur:
+            cur.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'code_chunks');")
+            exists = cur.fetchone()[0]
+            if not exists:
+                return {"table": "code_chunks", "status": "not_found"}
+            cur.execute("SELECT COUNT(*) FROM code_chunks;")
+            count = cur.fetchone()[0]
+            return {
+                "table": "code_chunks",
+                "chunks_count": count,
+                "status": "ready",
+            }
+    finally:
+        conn.close()

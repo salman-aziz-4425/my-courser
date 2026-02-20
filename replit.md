@@ -1,7 +1,7 @@
 # mycoursor
 
 ## Overview
-AI-powered CLI code assistant with semantic search. Indexes codebases using tree-sitter chunking, Voyage AI embeddings, and Qdrant vector storage. Uses Claude for code understanding and edit suggestions.
+AI-powered CLI code assistant with semantic search. Indexes codebases using line-based chunking, Gemini embeddings, and PostgreSQL with pgvector for storage. Uses Gemini for code understanding and edit suggestions.
 
 ## Project Architecture
 ```
@@ -10,13 +10,13 @@ mycoursor/
 ├── config.py            # Settings via env vars
 ├── indexer/
 │   ├── chunker.py       # File walking + line-based chunking
-│   ├── embedder.py      # Voyage AI embeddings
-│   └── store.py         # Qdrant vector operations
+│   ├── embedder.py      # Gemini embeddings (google-genai)
+│   └── store.py         # PostgreSQL + pgvector operations
 ├── retrieval/
-│   └── search.py        # Semantic search
+│   └── search.py        # Semantic search via pgvector
 ├── agent/
 │   ├── prompt.py        # System prompt + context building
-│   ├── llm.py           # Claude API calls (streaming)
+│   ├── llm.py           # Gemini API calls (streaming)
 │   └── parser.py        # Parse edit blocks from responses
 ├── editor/
 │   └── apply.py         # Apply diffs to files safely
@@ -26,18 +26,17 @@ mycoursor/
 ## CLI Commands
 - `python -m mycoursor.main index [PATH]` - Index a codebase
 - `python -m mycoursor.main search "query"` - Semantic search
-- `python -m mycoursor.main ask "question"` - Ask Claude about the code
+- `python -m mycoursor.main ask "question"` - Ask Gemini about the code
 - `python -m mycoursor.main apply response.txt` - Apply saved edits
 - `python -m mycoursor.main status` - Show config and index status
 
 ## Required Environment Variables
-- `VOYAGE_API_KEY` - Voyage AI API key for embeddings
-- `ANTHROPIC_API_KEY` - Anthropic API key for Claude
-- `QDRANT_URL` - Qdrant server URL (default: http://localhost:6333)
-- `QDRANT_API_KEY` - Qdrant API key (optional for local)
+- `GEMINI_API_KEY` - Google Gemini API key (for embeddings + LLM)
+- `DATABASE_URL` - PostgreSQL connection string (auto-provided by Replit)
 
 ## Dependencies
-- click, anthropic, voyageai, qdrant-client, tree-sitter, pydantic
+- click, google-genai, psycopg2-binary, pgvector, tree-sitter, pydantic
 
 ## Recent Changes
+- 2026-02-20: Switched from Voyage/Qdrant/Claude to Gemini/PostgreSQL
 - 2026-02-20: Initial build of all modules

@@ -3,15 +3,12 @@ from pydantic import BaseModel, Field
 
 
 class Settings(BaseModel):
-    anthropic_api_key: str = Field(default="")
-    voyage_api_key: str = Field(default="")
-    qdrant_url: str = Field(default="http://localhost:6333")
-    qdrant_api_key: str = Field(default="")
+    gemini_api_key: str = Field(default="")
+    database_url: str = Field(default="")
 
-    collection_name: str = Field(default="mycoursor")
-    embedding_model: str = Field(default="voyage-code-3")
-    embedding_dim: int = Field(default=1024)
-    llm_model: str = Field(default="claude-sonnet-4-20250514")
+    embedding_model: str = Field(default="gemini-embedding-001")
+    embedding_dim: int = Field(default=768)
+    llm_model: str = Field(default="gemini-2.5-flash")
     max_tokens: int = Field(default=4096)
 
     chunk_max_bytes: int = Field(default=4000)
@@ -21,7 +18,7 @@ class Settings(BaseModel):
         default_factory=lambda: [
             ".git", "__pycache__", "node_modules", ".venv",
             "venv", "dist", "build", ".mypy_cache", ".pytest_cache",
-            ".tox", "egg-info", ".eggs",
+            ".tox", "egg-info", ".eggs", ".pythonlibs",
         ]
     )
     ignore_extensions: list[str] = Field(
@@ -39,9 +36,6 @@ class Settings(BaseModel):
 
 def load_settings() -> Settings:
     return Settings(
-        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
-        voyage_api_key=os.environ.get("VOYAGE_API_KEY", ""),
-        qdrant_url=os.environ.get("QDRANT_URL", "http://localhost:6333"),
-        qdrant_api_key=os.environ.get("QDRANT_API_KEY", ""),
-        collection_name=os.environ.get("QDRANT_COLLECTION", "mycoursor"),
+        gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
+        database_url=os.environ.get("DATABASE_URL", ""),
     )

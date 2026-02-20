@@ -1,4 +1,5 @@
-import anthropic
+from google import genai
+from google.genai import types
 
 from mycoursor.config import Settings
 from mycoursor.agent.prompt import SYSTEM_PROMPT, build_prompt
@@ -11,43 +12,49 @@ def ask(
     settings: Settings,
     stream: bool = True,
 ) -> str:
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = genai.Client(api_key=settings.gemini_api_key)
     messages = build_prompt(question, results)
+    user_content = messages[0]["content"]
+
+    config = types.GenerateContentConfig(
+        system_instruction=SYSTEM_PROMPT,
+        max_output_tokens=settings.max_tokens,
+    )
 
     if stream:
-        return _stream_response(client, messages, settings)
+        return _stream_response(client, user_content, config, settings)
     else:
-        return _sync_response(client, messages, settings)
+        return _sync_response(client, user_content, config, settings)
 
 
 def _sync_response(
-    client: anthropic.Anthropic,
-    messages: list[dict],
+    client: genai.Client,
+    content: str,
+    config: types.GenerateContentConfig,
     settings: Settings,
 ) -> str:
-    response = client.messages.create(
+    response = client.models.generate_content(
         model=settings.llm_model,
-        max_tokens=settings.max_tokens,
-        system=SYSTEM_PROMPT,
-        messages=messages,
+        contents=content,
+        config=config,
     )
-    return response.content[0].text
+    return response.text
 
 
 def _stream_response(
-    client: anthropic.Anthropic,
-    messages: list[dict],
+    client: genai.Client,
+    content: str,
+    config: types.GenerateContentConfig,
     settings: Settings,
 ) -> str:
     collected: list[str] = []
-    with client.messages.stream(
+    for chunk in client.models.generate_content_stream(
         model=settings.llm_model,
-        max_tokens=settings.max_tokens,
-        system=SYSTEM_PROMPT,
-        messages=messages,
-    ) as stream:
-        for text in stream.text_stream:
-            print(text, end="", flush=True)
-            collected.append(text)
+        contents=content,
+        config=config,
+    ):
+        if chunk.text:
+            print(chunk.text, end="", flush=True)
+            collected.append(chunk.text)
     print()
     return "".join(collected)

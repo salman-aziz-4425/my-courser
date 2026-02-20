@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 
 import click
 
@@ -21,8 +20,11 @@ def index(path: str, fresh: bool):
     """Index a codebase for semantic search."""
     settings = load_settings()
 
-    if not settings.voyage_api_key:
-        click.echo("Error: VOYAGE_API_KEY not set.", err=True)
+    if not settings.gemini_api_key:
+        click.echo("Error: GEMINI_API_KEY not set.", err=True)
+        sys.exit(1)
+    if not settings.database_url:
+        click.echo("Error: DATABASE_URL not set.", err=True)
         sys.exit(1)
 
     root = os.path.abspath(path)
@@ -37,16 +39,16 @@ def index(path: str, fresh: bool):
         return
 
     if fresh:
-        from mycoursor.indexer.store import delete_collection
-        click.echo("Deleting existing collection...")
-        delete_collection(settings)
+        from mycoursor.indexer.store import clear_table
+        click.echo("Clearing existing index...")
+        clear_table(settings)
 
     click.echo("Generating embeddings...")
     from mycoursor.indexer.embedder import embed_chunks
     vectors = embed_chunks(chunks, settings)
     click.echo(f"Generated {len(vectors)} embedding(s).")
 
-    click.echo("Uploading to vector store...")
+    click.echo("Storing in database...")
     from mycoursor.indexer.store import upsert_chunks
     count = upsert_chunks(chunks, vectors, settings)
     click.echo(f"Indexed {count} chunk(s) successfully.")
@@ -59,8 +61,8 @@ def search(query: str, top_k: int | None):
     """Search the indexed codebase."""
     settings = load_settings()
 
-    if not settings.voyage_api_key:
-        click.echo("Error: VOYAGE_API_KEY not set.", err=True)
+    if not settings.gemini_api_key:
+        click.echo("Error: GEMINI_API_KEY not set.", err=True)
         sys.exit(1)
 
     from mycoursor.retrieval.search import search as do_search
@@ -87,11 +89,8 @@ def ask(question: str, top_k: int | None, no_stream: bool, do_apply: bool, dry_r
     """Ask a question about the codebase."""
     settings = load_settings()
 
-    if not settings.anthropic_api_key:
-        click.echo("Error: ANTHROPIC_API_KEY not set.", err=True)
-        sys.exit(1)
-    if not settings.voyage_api_key:
-        click.echo("Error: VOYAGE_API_KEY not set.", err=True)
+    if not settings.gemini_api_key:
+        click.echo("Error: GEMINI_API_KEY not set.", err=True)
         sys.exit(1)
 
     click.echo("Searching for relevant code...")
@@ -114,9 +113,9 @@ def ask(question: str, top_k: int | None, no_stream: bool, do_apply: bool, dry_r
                     click.echo("Cancelled.")
                     return
             from mycoursor.editor.apply import apply_edits
-            results = apply_edits(blocks, dry_run=dry_run)
+            edit_results = apply_edits(blocks, dry_run=dry_run)
             click.echo()
-            for r in results:
+            for r in edit_results:
                 status = "OK" if r.success else "FAIL"
                 click.echo(f"  [{status}] {r.action}: {r.message}")
 
@@ -159,11 +158,8 @@ def status():
     click.echo("Configuration:")
     click.echo(f"  Embedding model:  {settings.embedding_model}")
     click.echo(f"  LLM model:        {settings.llm_model}")
-    click.echo(f"  Collection:       {settings.collection_name}")
-    click.echo(f"  Qdrant URL:       {settings.qdrant_url}")
-    click.echo(f"  Voyage API key:   {'set' if settings.voyage_api_key else 'NOT SET'}")
-    click.echo(f"  Anthropic key:    {'set' if settings.anthropic_api_key else 'NOT SET'}")
-    click.echo(f"  Qdrant API key:   {'set' if settings.qdrant_api_key else 'NOT SET'}")
+    click.echo(f"  Database:         {'connected' if settings.database_url else 'NOT SET'}")
+    click.echo(f"  Gemini API key:   {'set' if settings.gemini_api_key else 'NOT SET'}")
 
     try:
         from mycoursor.indexer.store import collection_info

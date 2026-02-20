@@ -22,6 +22,9 @@ def search(query: str, settings: Settings, top_k: int | None = None) -> list[Sea
 
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'code_chunks');")
+            if not cur.fetchone()[0]:
+                return []
             cur.execute(
                 """
                 SELECT file_path, start_line, end_line, text, language,

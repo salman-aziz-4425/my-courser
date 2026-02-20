@@ -1,9 +1,25 @@
+import os
+
 from google import genai
 from google.genai import types
 
 from mycoursor.config import Settings
 from mycoursor.agent.prompt import SYSTEM_PROMPT, build_prompt
 from mycoursor.retrieval.search import SearchResult
+
+# Replit AI Integrations: Gemini access without requiring your own API key
+AI_INTEGRATIONS_GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
+AI_INTEGRATIONS_GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL")
+
+
+def _get_client() -> genai.Client:
+    return genai.Client(
+        api_key=AI_INTEGRATIONS_GEMINI_API_KEY,
+        http_options={
+            "api_version": "",
+            "base_url": AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
+    )
 
 
 def ask(
@@ -12,13 +28,13 @@ def ask(
     settings: Settings,
     stream: bool = True,
 ) -> str:
-    client = genai.Client(api_key=settings.gemini_api_key)
+    client = _get_client()
     messages = build_prompt(question, results)
     user_content = messages[0]["content"]
 
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
-        max_output_tokens=settings.max_tokens,
+        max_output_tokens=8192,
     )
 
     if stream:

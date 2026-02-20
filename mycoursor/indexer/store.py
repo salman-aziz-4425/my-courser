@@ -1,4 +1,3 @@
-import os
 import psycopg2
 from pgvector.psycopg2 import register_vector
 
@@ -12,41 +11,21 @@ def get_connection(settings: Settings):
     return conn
 
 
-def ensure_table(settings: Settings) -> None:
+def _create_table(settings: Settings, dim: int) -> None:
     conn = get_connection(settings)
     try:
         with conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            cur.execute("DROP TABLE IF EXISTS code_chunks;")
             cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS code_chunks (
+                CREATE TABLE code_chunks (
                     id SERIAL PRIMARY KEY,
                     file_path TEXT NOT NULL,
                     start_line INTEGER NOT NULL,
                     end_line INTEGER NOT NULL,
                     text TEXT NOT NULL,
                     language TEXT DEFAULT '',
-                    embedding vector({settings.embedding_dim})
-                );
-            """)
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_code_chunks_embedding
-                ON code_chunks USING ivfflat (embedding vector_cosine_ops)
-                WITH (lists = 100);
-            """)
-        conn.commit()
-    except psycopg2.errors.InvalidParameterValue:
-        conn.rollback()
-        with conn.cursor() as cur:
-            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS code_chunks (
-                    id SERIAL PRIMARY KEY,
-                    file_path TEXT NOT NULL,
-                    start_line INTEGER NOT NULL,
-                    end_line INTEGER NOT NULL,
-                    text TEXT NOT NULL,
-                    language TEXT DEFAULT '',
-                    embedding vector({settings.embedding_dim})
+                    embedding vector({dim})
                 );
             """)
         conn.commit()
@@ -58,7 +37,7 @@ def clear_table(settings: Settings) -> None:
     conn = get_connection(settings)
     try:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM code_chunks;")
+            cur.execute("DROP TABLE IF EXISTS code_chunks;")
         conn.commit()
     finally:
         conn.close()
@@ -69,7 +48,12 @@ def upsert_chunks(
     vectors: list[list[float]],
     settings: Settings,
 ) -> int:
-    ensure_table(settings)
+    if not vectors:
+        return 0
+
+    dim = len(vectors[0])
+    _create_table(settings, dim)
+
     conn = get_connection(settings)
     try:
         with conn.cursor() as cur:
@@ -89,6 +73,18 @@ def upsert_chunks(
                     ),
                 )
         conn.commit()
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM code_chunks;")
+            count = cur.fetchone()[0]
+            if count >= 100:
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_code_chunks_embedding
+                    ON code_chunks USING ivfflat (embedding vector_cosine_ops)
+                    WITH (lists = 100);
+                """)
+                conn.commit()
+
         return len(chunks)
     finally:
         conn.close()

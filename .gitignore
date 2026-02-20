@@ -13,3 +13,4 @@ venv/
 *.bak
 .mypy_cache/
 .pytest_cache/
+.embedder_model.pkl

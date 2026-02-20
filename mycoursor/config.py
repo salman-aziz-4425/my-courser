@@ -3,13 +3,10 @@ from pydantic import BaseModel, Field
 
 
 class Settings(BaseModel):
-    gemini_api_key: str = Field(default="")
     database_url: str = Field(default="")
 
-    embedding_model: str = Field(default="gemini-embedding-001")
     embedding_dim: int = Field(default=768)
     llm_model: str = Field(default="gemini-2.5-flash")
-    max_tokens: int = Field(default=4096)
 
     chunk_max_bytes: int = Field(default=4000)
     search_top_k: int = Field(default=10)
@@ -36,6 +33,5 @@ class Settings(BaseModel):
 
 def load_settings() -> Settings:
     return Settings(
-        gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
         database_url=os.environ.get("DATABASE_URL", ""),
     )

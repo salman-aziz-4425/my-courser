@@ -20,9 +20,6 @@ def index(path: str, fresh: bool):
     """Index a codebase for semantic search."""
     settings = load_settings()
 
-    if not settings.gemini_api_key:
-        click.echo("Error: GEMINI_API_KEY not set.", err=True)
-        sys.exit(1)
     if not settings.database_url:
         click.echo("Error: DATABASE_URL not set.", err=True)
         sys.exit(1)
@@ -61,10 +58,6 @@ def search(query: str, top_k: int | None):
     """Search the indexed codebase."""
     settings = load_settings()
 
-    if not settings.gemini_api_key:
-        click.echo("Error: GEMINI_API_KEY not set.", err=True)
-        sys.exit(1)
-
     from mycoursor.retrieval.search import search as do_search
     results = do_search(query, settings, top_k=top_k)
 
@@ -88,10 +81,6 @@ def search(query: str, top_k: int | None):
 def ask(question: str, top_k: int | None, no_stream: bool, do_apply: bool, dry_run: bool):
     """Ask a question about the codebase."""
     settings = load_settings()
-
-    if not settings.gemini_api_key:
-        click.echo("Error: GEMINI_API_KEY not set.", err=True)
-        sys.exit(1)
 
     click.echo("Searching for relevant code...")
     from mycoursor.retrieval.search import search as do_search
@@ -155,11 +144,16 @@ def status():
     """Show index status and configuration."""
     settings = load_settings()
 
+    gemini_configured = bool(
+        os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
+        and os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL")
+    )
+
     click.echo("Configuration:")
-    click.echo(f"  Embedding model:  {settings.embedding_model}")
+    click.echo(f"  Embeddings:       local (scikit-learn TF-IDF)")
     click.echo(f"  LLM model:        {settings.llm_model}")
     click.echo(f"  Database:         {'connected' if settings.database_url else 'NOT SET'}")
-    click.echo(f"  Gemini API key:   {'set' if settings.gemini_api_key else 'NOT SET'}")
+    click.echo(f"  Gemini (Replit):  {'configured' if gemini_configured else 'NOT CONFIGURED'}")
 
     try:
         from mycoursor.indexer.store import collection_info

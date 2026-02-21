@@ -420,6 +420,64 @@ body {
 
 @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+/* ---- Edit blocks ---- */
+.edit-block {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.edit-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg-overlay);
+  font-size: 12px;
+}
+
+.edit-block-file {
+  color: var(--accent);
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.edit-block-btn {
+  padding: 2px 10px !important;
+  font-size: 11px !important;
+}
+
+.edit-block-applied {
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.edit-block-applying {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.edit-block-diff {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 6px 10px;
+  overflow-x: auto;
+}
+
+.diff-section { padding: 2px 0; }
+
+.diff-remove {
+  color: var(--red);
+  opacity: 0.7;
+}
+
+.diff-add {
+  color: var(--green);
+}
+
 /* ---- Loading spinner ---- */
 .spinner {
   display: inline-block;

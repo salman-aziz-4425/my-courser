@@ -13,6 +13,8 @@ from mycoursor.indexer.embedder import embed_chunks
 from mycoursor.indexer.store import upsert_chunks, collection_info, clear_table
 from mycoursor.retrieval.search import search
 from mycoursor.agent.prompt import SYSTEM_PROMPT, build_prompt
+from mycoursor.agent.parser import parse_edit_blocks
+from mycoursor.editor.apply import apply_edit
 
 from google import genai
 from google.genai import types
@@ -46,10 +48,16 @@ class SearchRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
+    file_path: str = ""
 
 class SaveFileRequest(BaseModel):
     path: str
     content: str
+
+class ApplyRequest(BaseModel):
+    file_path: str
+    original: str
+    updated: str
 
 
 @app.get("/api/status")
@@ -172,12 +180,35 @@ def run_search(req: SearchRequest):
     ]
 
 
+@app.post("/api/apply")
+def apply_changes(req: ApplyRequest):
+    safe = _safe_path(req.file_path)
+    from mycoursor.agent.parser import EditBlock
+    block = EditBlock(file_path=safe, original=req.original, updated=req.updated)
+    result = apply_edit(block, dry_run=False)
+    if not result.success:
+        raise HTTPException(status_code=400, detail=result.message)
+    with open(safe, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+    _, ext = os.path.splitext(safe)
+    return {"path": safe, "content": content, "lang": LANG_EXTENSIONS.get(ext, ""), "message": result.message}
+
+
 @app.post("/api/chat")
 def run_chat(req: ChatRequest):
     s = load_settings()
     results = search(req.question, s, top_k=s.search_top_k)
     messages = build_prompt(req.question, results)
     user_content = messages[0]["content"]
+
+    if req.file_path:
+        try:
+            safe = _safe_path(req.file_path)
+            with open(safe, "r", encoding="utf-8", errors="replace") as f:
+                file_content = f.read()
+            user_content += f"\n\n--- Currently open file: {req.file_path} ---\n{file_content}"
+        except Exception:
+            pass
 
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,

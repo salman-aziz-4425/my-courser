@@ -150,7 +150,7 @@ export default function App() {
             )}
           </div>
 
-          {panelOpen && tab === 'chat' && <ChatPanel />}
+          {panelOpen && tab === 'chat' && <ChatPanel currentFile={file} onFileUpdated={(updated) => { setFile(updated); setToast({ type: 'success', text: 'Changes applied!' }) }} />}
           {panelOpen && tab === 'search' && <SearchPanel onFileSelect={openFile} />}
         </aside>
       </div>

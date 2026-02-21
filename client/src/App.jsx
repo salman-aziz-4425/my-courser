@@ -49,41 +49,47 @@ export default function App() {
   }
 
   async function runIndex() {
-    console.log('runIndex called');
-    setIndexing(true)
-    setToast({ type: 'info', text: 'Indexing started...' })
+    console.log('runIndex: Indexing process initiated.');
+    setIndexing(true);
+    setToast({ type: 'info', text: 'Indexing started...' });
     try {
-      await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-      console.log('API call to /api/index successful');
-      pollIndex()
+      const res = await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const resText = await res.text(); // Read response as text
+      console.log('runIndex: API call to /api/index successful. Response:', resText);
+      pollIndex();
     } catch (err) {
-      console.error('runIndex failed:', err);
-      setToast({ type: 'error', text: 'Index failed' })
-      setIndexing(false)
+      console.error('runIndex: Index failed due to API call error:', err);
+      setToast({ type: 'error', text: 'Index failed' });
+      setIndexing(false);
     }
   }
 
   function pollIndex() {
+    console.log('pollIndex: Starting polling for index status.');
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/index/status')
-        const data = await res.json()
-        console.log('Polling index status:', data) // Added console.log
+        const res = await fetch('/api/index/status');
+        const data = await res.json();
+        console.log('pollIndex: Current index status data:', data);
         if (!data.running) {
-          clearInterval(interval)
-          setIndexing(false)
+          clearInterval(interval);
+          setIndexing(false);
           if (data.result) {
-            setToast({ type: data.result.chunks > 0 ? 'success' : 'error', text: data.result.message })
+            console.log('pollIndex: Indexing finished. Result:', data.result.message);
+            setToast({ type: data.result.chunks > 0 ? 'success' : 'error', text: data.result.message });
+          } else {
+            console.log('pollIndex: Indexing finished, but no result message was provided.');
+            setToast({ type: 'info', text: 'Indexing finished.' });
           }
-          loadStatus()
+          loadStatus();
         }
       } catch (err) {
-        console.error('Polling index failed:', err)
-        clearInterval(interval)
-        setIndexing(false)
-        setToast({ type: 'error', text: 'Failed to get index status. Please try again.' })
+        console.error('pollIndex: Error while polling index status:', err);
+        clearInterval(interval);
+        setIndexing(false);
+        setToast({ type: 'error', text: 'Failed to get index status. Please try again.' });
       }
-    }, 1500)
+    }, 1500);
   }
 
   const chunks = status?.index?.chunks_count ?? 0

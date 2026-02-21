@@ -62,6 +62,7 @@ client/                  # React + Vite frontend
 - Point-to-point functionality (no bloat)
 
 ## Recent Changes
+- 2026-02-21: Added typewriter animation when applying AI code edits (green glow, blinking cursor, character-by-character reveal)
 - 2026-02-21: Added AI-powered code editing (Apply button on edit blocks in chat)
 - 2026-02-21: Added file editing in CodeViewer (Edit/Save/Cancel with Ctrl+S)
 - 2026-02-21: Fixed vector dimension mismatch (fixed 64-dim embeddings)

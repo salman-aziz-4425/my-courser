@@ -1,7 +1,7 @@
 # mycoursor
 
 ## Overview
-AI-powered CLI code assistant with semantic search. Indexes codebases using line-based chunking, local TF-IDF embeddings (scikit-learn), and PostgreSQL with pgvector for storage. Uses Gemini (via Replit AI Integrations) for code understanding and edit suggestions. No API keys required.
+AI-powered code assistant with an IDE-like web interface. Indexes codebases using local TF-IDF embeddings, stores vectors in PostgreSQL + pgvector, and uses Gemini (via Replit AI Integrations) for AI chat. No API keys required.
 
 ## Project Architecture
 ```
@@ -11,34 +11,55 @@ mycoursor/
 ├── indexer/
 │   ├── chunker.py       # File walking + line-based chunking
 │   ├── embedder.py      # Local TF-IDF + SVD embeddings (scikit-learn)
-│   └── store.py         # PostgreSQL + pgvector operations
+│   └── store.py         # PostgreSQL + pgvector storage
 ├── retrieval/
 │   └── search.py        # Semantic search via pgvector
 ├── agent/
 │   ├── prompt.py        # System prompt + context building
-│   ├── llm.py           # Gemini via Replit AI Integrations (streaming)
+│   ├── llm.py           # Gemini via Replit AI Integrations
 │   └── parser.py        # Parse edit blocks from responses
 ├── editor/
-│   └── apply.py         # Apply diffs to files safely
-└── __init__.py
+│   └── apply.py         # Apply diffs to files
+└── webapp/
+    └── app.py           # FastAPI backend (API endpoints)
+
+client/                  # React + Vite frontend
+├── src/
+│   ├── App.jsx          # Main app layout (IDE)
+│   ├── styles.css       # Global styles (dark theme)
+│   └── components/
+│       ├── FileTree.jsx    # File explorer sidebar
+│       ├── CodeViewer.jsx  # Syntax-highlighted code viewer
+│       ├── ChatPanel.jsx   # AI chat with streaming
+│       └── SearchPanel.jsx # Semantic search
+└── vite.config.js       # Vite config (proxy /api → FastAPI:8000)
 ```
 
-## CLI Commands
-- `python -m mycoursor.main index [PATH]` - Index a codebase
-- `python -m mycoursor.main search "query"` - Semantic search
-- `python -m mycoursor.main ask "question"` - Ask Gemini about the code
-- `python -m mycoursor.main apply response.txt` - Apply saved edits
-- `python -m mycoursor.main status` - Show config and index status
+## Workflows
+- **FastAPI Backend**: `uvicorn mycoursor.webapp.app:app` on port 8000
+- **React Frontend**: `npm run dev` on port 5000 (proxies /api to backend)
+
+## API Endpoints
+- `GET /api/status` - System status and index info
+- `GET /api/tree` - Project file tree
+- `GET /api/file?path=...` - File content
+- `POST /api/index` - Re-index the project
+- `POST /api/search` - Semantic search (`{ query, top_k }`)
+- `POST /api/chat` - AI chat with streaming SSE (`{ question }`)
 
 ## Environment
-- `DATABASE_URL` - PostgreSQL connection (auto-provided by Replit)
-- `AI_INTEGRATIONS_GEMINI_*` - Gemini access (auto-provided by Replit AI Integrations)
+- `DATABASE_URL` - PostgreSQL (auto-provided by Replit)
+- `AI_INTEGRATIONS_GEMINI_*` - Gemini access (auto-provided)
 - No manual API keys needed
 
-## Dependencies
-- click, google-genai, psycopg2-binary, pgvector, scikit-learn, tree-sitter, pydantic
+## User Preferences
+- React for frontend
+- FastAPI for backend
+- Keep code simple and easy to understand
+- Point-to-point functionality (no bloat)
 
 ## Recent Changes
-- 2026-02-20: Switched to local TF-IDF embeddings + Replit Gemini integration (no API keys)
-- 2026-02-20: Switched from Voyage/Qdrant/Claude to Gemini/PostgreSQL
+- 2026-02-21: Added React + Vite frontend with IDE layout
+- 2026-02-21: Switched backend from Flask to FastAPI
+- 2026-02-20: Switched to local TF-IDF embeddings + Replit Gemini integration
 - 2026-02-20: Initial build of all modules

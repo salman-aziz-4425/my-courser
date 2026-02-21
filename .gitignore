@@ -14,3 +14,5 @@ venv/
 .mypy_cache/
 .pytest_cache/
 .embedder_model.pkl
+node_modules/
+client/node_modules/

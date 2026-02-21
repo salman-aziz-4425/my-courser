@@ -1,170 +1,136 @@
 import os
 import json
 
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
-from mycoursor.config import load_settings, Settings
-from mycoursor.indexer.chunker import chunk_repository, _walk_files, _detect_language, LANG_EXTENSIONS
+from mycoursor.config import load_settings
+from mycoursor.indexer.chunker import chunk_repository, LANG_EXTENSIONS
 from mycoursor.indexer.embedder import embed_chunks
 from mycoursor.indexer.store import upsert_chunks, collection_info, clear_table
 from mycoursor.retrieval.search import search
 from mycoursor.agent.prompt import SYSTEM_PROMPT, build_prompt
-from mycoursor.agent.parser import parse_edit_blocks
 
 from google import genai
 from google.genai import types
 
-app = Flask(
-    __name__,
-    template_folder=os.path.join(os.path.dirname(__file__), "templates"),
-    static_folder=os.path.join(os.path.dirname(__file__), "static"),
-)
+app = FastAPI()
 
+PROJECT_ROOT = os.path.realpath(os.getcwd())
 AI_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
 AI_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL")
 
-PROJECT_ROOT = os.environ.get("PROJECT_ROOT", os.getcwd())
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[f"http://localhost:5000", f"http://0.0.0.0:5000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-def _settings() -> Settings:
-    return load_settings()
+def _safe_path(path: str) -> str:
+    real = os.path.realpath(path)
+    if not real.startswith(PROJECT_ROOT):
+        raise HTTPException(status_code=403, detail="Access denied")
+    return real
 
 
-@app.after_request
-def no_cache(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    return response
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 10
+
+class ChatRequest(BaseModel):
+    question: str
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-@app.route("/api/status")
-def api_status():
-    s = _settings()
-    info = collection_info(s)
-    return jsonify({
-        "embedding": "local (scikit-learn TF-IDF)",
+@app.get("/api/status")
+def get_status():
+    s = load_settings()
+    return {
         "llm_model": s.llm_model,
         "database": "connected" if s.database_url else "not configured",
         "gemini": "configured" if AI_KEY else "not configured",
-        "index": info,
-        "project_root": PROJECT_ROOT,
-    })
+        "index": collection_info(s),
+    }
 
 
-@app.route("/api/tree")
-def api_tree():
-    s = _settings()
-    root = request.args.get("root", PROJECT_ROOT)
-    ignore = set(s.ignore_dirs)
-    tree = _build_tree(root, ignore, s)
-    return jsonify(tree)
+@app.get("/api/tree")
+def get_tree():
+    s = load_settings()
+    return build_tree(PROJECT_ROOT, set(s.ignore_dirs), s)
 
 
-def _build_tree(root, ignore, settings):
+def build_tree(root, ignore, settings):
     items = []
     try:
         entries = sorted(os.listdir(root))
     except OSError:
         return items
-
     for entry in entries:
-        if entry.startswith(".") and entry not in (".env",):
+        if entry.startswith("."):
             continue
         if entry in ignore:
             continue
         full = os.path.join(root, entry)
         if os.path.isdir(full):
-            children = _build_tree(full, ignore, settings)
+            children = build_tree(full, ignore, settings)
             if children:
-                items.append({
-                    "name": entry,
-                    "path": full,
-                    "type": "directory",
-                    "children": children,
-                })
+                items.append({"name": entry, "path": full, "type": "dir", "children": children})
         else:
             _, ext = os.path.splitext(entry)
             if ext.lower() in {e.lower() for e in settings.ignore_extensions}:
                 continue
-            lang = LANG_EXTENSIONS.get(ext, "")
-            items.append({
-                "name": entry,
-                "path": full,
-                "type": "file",
-                "language": lang,
-            })
+            items.append({"name": entry, "path": full, "type": "file", "lang": LANG_EXTENSIONS.get(ext, "")})
     return items
 
 
-@app.route("/api/file")
-def api_file():
-    path = request.args.get("path", "")
-    if not path or not os.path.isfile(path):
-        return jsonify({"error": "File not found"}), 404
-    if not path.startswith(PROJECT_ROOT):
-        return jsonify({"error": "Access denied"}), 403
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-        _, ext = os.path.splitext(path)
-        lang = LANG_EXTENSIONS.get(ext, "text")
-        return jsonify({"path": path, "content": content, "language": lang})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+@app.get("/api/file")
+def get_file(path: str):
+    safe = _safe_path(path)
+    if not os.path.isfile(safe):
+        raise HTTPException(status_code=404, detail="File not found")
+    with open(safe, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+    _, ext = os.path.splitext(safe)
+    return {"path": safe, "content": content, "lang": LANG_EXTENSIONS.get(ext, "")}
 
 
-@app.route("/api/index", methods=["POST"])
-def api_index():
-    data = request.get_json(silent=True) or {}
-    root = data.get("root", PROJECT_ROOT)
-    s = _settings()
-    try:
-        clear_table(s)
-        chunks = chunk_repository(root, s)
-        if not chunks:
-            return jsonify({"status": "ok", "chunks": 0, "message": "No files found to index."})
-        vectors = embed_chunks(chunks, s)
-        count = upsert_chunks(chunks, vectors, s)
-        return jsonify({"status": "ok", "chunks": count, "message": f"Indexed {count} chunks."})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+@app.post("/api/index")
+def run_index():
+    s = load_settings()
+    clear_table(s)
+    chunks = chunk_repository(PROJECT_ROOT, s)
+    if not chunks:
+        return {"chunks": 0, "message": "No files found."}
+    vectors = embed_chunks(chunks, s)
+    count = upsert_chunks(chunks, vectors, s)
+    return {"chunks": count, "message": f"Indexed {count} chunks."}
 
 
-@app.route("/api/search", methods=["POST"])
-def api_search():
-    data = request.get_json(silent=True) or {}
-    query = data.get("query", "")
-    if not query:
-        return jsonify({"error": "No query provided"}), 400
-    s = _settings()
-    try:
-        results = search(query, s, top_k=data.get("top_k", 10))
-        return jsonify([{
+@app.post("/api/search")
+def run_search(req: SearchRequest):
+    s = load_settings()
+    results = search(req.query, s, top_k=req.top_k)
+    return [
+        {
             "file_path": r.file_path,
             "start_line": r.start_line,
             "end_line": r.end_line,
             "text": r.text,
-            "language": r.language,
+            "lang": r.language,
             "score": round(r.score, 4),
-        } for r in results])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        }
+        for r in results
+    ]
 
 
-@app.route("/api/chat", methods=["POST"])
-def api_chat():
-    data = request.get_json(silent=True) or {}
-    question = data.get("question", "")
-    if not question:
-        return jsonify({"error": "No question provided"}), 400
-
-    s = _settings()
-    results = search(question, s, top_k=s.search_top_k)
-    messages = build_prompt(question, results)
+@app.post("/api/chat")
+def run_chat(req: ChatRequest):
+    s = load_settings()
+    results = search(req.question, s, top_k=s.search_top_k)
+    messages = build_prompt(req.question, results)
     user_content = messages[0]["content"]
 
     config = types.GenerateContentConfig(
@@ -172,16 +138,14 @@ def api_chat():
         max_output_tokens=8192,
     )
 
-    def generate():
+    def stream():
         client = genai.Client(
             api_key=AI_KEY,
             http_options={"api_version": "", "base_url": AI_URL},
         )
         try:
             for chunk in client.models.generate_content_stream(
-                model=s.llm_model,
-                contents=user_content,
-                config=config,
+                model=s.llm_model, contents=user_content, config=config,
             ):
                 if chunk.text:
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
@@ -189,12 +153,4 @@ def api_chat():
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         yield "data: [DONE]\n\n"
 
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={"X-Accel-Buffering": "no"},
-    )
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    return StreamingResponse(stream(), media_type="text/event-stream")

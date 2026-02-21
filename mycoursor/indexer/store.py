@@ -11,28 +11,6 @@ def get_connection(settings: Settings):
     return conn
 
 
-def _create_table(settings: Settings, dim: int) -> None:
-    conn = get_connection(settings)
-    try:
-        with conn.cursor() as cur:
-            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            cur.execute("DROP TABLE IF EXISTS code_chunks;")
-            cur.execute(f"""
-                CREATE TABLE code_chunks (
-                    id SERIAL PRIMARY KEY,
-                    file_path TEXT NOT NULL,
-                    start_line INTEGER NOT NULL,
-                    end_line INTEGER NOT NULL,
-                    text TEXT NOT NULL,
-                    language TEXT DEFAULT '',
-                    embedding vector({dim})
-                );
-            """)
-        conn.commit()
-    finally:
-        conn.close()
-
-
 def clear_table(settings: Settings) -> None:
     conn = get_connection(settings)
     try:
@@ -52,11 +30,22 @@ def upsert_chunks(
         return 0
 
     dim = len(vectors[0])
-    _create_table(settings, dim)
-
     conn = get_connection(settings)
     try:
         with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            cur.execute("DROP TABLE IF EXISTS code_chunks;")
+            cur.execute(f"""
+                CREATE TABLE code_chunks (
+                    id SERIAL PRIMARY KEY,
+                    file_path TEXT NOT NULL,
+                    start_line INTEGER NOT NULL,
+                    end_line INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    language TEXT DEFAULT '',
+                    embedding vector({dim})
+                );
+            """)
             for chunk, vector in zip(chunks, vectors):
                 cur.execute(
                     """
@@ -74,10 +63,8 @@ def upsert_chunks(
                 )
         conn.commit()
 
-        with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM code_chunks;")
-            count = cur.fetchone()[0]
-            if count >= 100:
+        if len(chunks) >= 100:
+            with conn.cursor() as cur:
                 cur.execute("""
                     CREATE INDEX IF NOT EXISTS idx_code_chunks_embedding
                     ON code_chunks USING ivfflat (embedding vector_cosine_ops)
@@ -97,7 +84,7 @@ def collection_info(settings: Settings) -> dict:
             cur.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'code_chunks');")
             exists = cur.fetchone()[0]
             if not exists:
-                return {"table": "code_chunks", "status": "not_found"}
+                return {"table": "code_chunks", "status": "not_found", "chunks_count": 0}
             cur.execute("SELECT COUNT(*) FROM code_chunks;")
             count = cur.fetchone()[0]
             return {

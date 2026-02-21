@@ -4,7 +4,7 @@ An AI-powered code assistant with an IDE-like web interface. Index your codebase
 
 Built with React + FastAPI. Uses local TF-IDF embeddings for semantic search and Gemini for AI chat. No API keys required when running on Replit.
 
-![Welcome Screen](screenshots/code-viewer.png)
+![Welcome Screen](screenshots/welcome.png)
 
 ---
 
@@ -29,7 +29,7 @@ Ask the AI anything about your codebase. It understands your project structure, 
 - Edit blocks with Apply button for direct code changes
 - Diff preview showing what will change (red = removed, green = added)
 
-![AI Chat](screenshots/ai-chat-edit.png)
+![AI Chat](screenshots/ai-chat.png)
 
 ### Typewriter Animation
 
@@ -40,8 +40,6 @@ When you apply an AI-suggested code change, the modified lines appear with a typ
 - Blinking cursor follows the text
 - Smooth fade-out when animation completes
 - Unchanged code stays perfectly still
-
-![Typewriter Animation](screenshots/typewriter-animation.png)
 
 ### Semantic Search
 

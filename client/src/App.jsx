@@ -64,6 +64,7 @@ export default function App() {
       try {
         const res = await fetch('/api/index/status')
         const data = await res.json()
+        console.log('Polling index status:', data) // Added console.log
         if (!data.running) {
           clearInterval(interval)
           setIndexing(false)
@@ -72,7 +73,8 @@ export default function App() {
           }
           loadStatus()
         }
-      } catch {
+      } catch (err) { // Added err parameter for better logging
+        console.error('Polling index failed:', err) // Added console.error
         clearInterval(interval)
         setIndexing(false)
       }

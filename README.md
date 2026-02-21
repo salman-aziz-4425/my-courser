@@ -2,7 +2,7 @@
 
 An AI-powered code assistant with an IDE-like web interface. Index your codebase, ask questions about your code, and let AI make edits directly — all from your browser.
 
-Built with React + FastAPI. Uses local TF-IDF embeddings for semantic search and Gemini for AI chat. No API keys required when running on Replit.
+Built with React + FastAPI. Uses local TF-IDF embeddings for semantic search and Gemini for AI chat.
 
 ![Welcome Screen](screenshots/welcome.png)
 
@@ -86,7 +86,7 @@ mycoursor/
 │   └── search.py        # Semantic search via pgvector
 ├── agent/
 │   ├── prompt.py        # System prompt + context building
-│   ├── llm.py           # Gemini via Replit AI Integrations
+│   ├── llm.py           # Gemini via AI Integrations
 │   └── parser.py        # Parse edit blocks from AI responses
 ├── editor/
 │   └── apply.py         # Apply code diffs to files
@@ -131,7 +131,7 @@ client/                  # React + Vite frontend
 - **Frontend**: React, Vite, react-syntax-highlighter
 - **Backend**: FastAPI, Uvicorn
 - **Database**: PostgreSQL + pgvector
-- **AI**: Gemini (via Replit AI Integrations)
+- **AI**: Gemini
 - **Embeddings**: scikit-learn (TF-IDF + TruncatedSVD)
 - **Language**: Python 3.11, JavaScript (ES2022)
 

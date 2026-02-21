@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,6 +14,44 @@ venv/
 *.bak
 .mypy_cache/
 .pytest_cache/
-.embedder_model.pkl
+.ruff_cache/
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js
 node_modules/
 client/node_modules/
+client/dist/
+client/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Replit
+.cache/
+.upm/
+.config/
+.local/
+
+# Project specific
+.embedder_model.pkl

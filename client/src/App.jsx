@@ -111,7 +111,7 @@ export default function App() {
         {/* Center - code viewer */}
         <main className="editor-area">
           {file ? (
-            <CodeViewer file={file} />
+            <CodeViewer file={file} onSave={(updated) => { setFile(updated); setToast({ type: 'success', text: 'File saved' }) }} />
           ) : (
             <div className="welcome">
               <h1>&#9670; mycoursor</h1>

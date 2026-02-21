@@ -47,6 +47,10 @@ class SearchRequest(BaseModel):
 class ChatRequest(BaseModel):
     question: str
 
+class SaveFileRequest(BaseModel):
+    path: str
+    content: str
+
 
 @app.get("/api/status")
 def get_status():
@@ -99,6 +103,20 @@ def get_file(path: str):
         content = f.read()
     _, ext = os.path.splitext(safe)
     return {"path": safe, "content": content, "lang": LANG_EXTENSIONS.get(ext, "")}
+
+
+@app.put("/api/file")
+def save_file(req: SaveFileRequest):
+    safe = _safe_path(req.path)
+    if not os.path.isfile(safe):
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        with open(safe, "w", encoding="utf-8") as f:
+            f.write(req.content)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save: {e}")
+    _, ext = os.path.splitext(safe)
+    return {"path": safe, "content": req.content, "lang": LANG_EXTENSIONS.get(ext, "")}
 
 
 def _do_index():

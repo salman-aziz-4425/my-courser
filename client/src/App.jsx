@@ -73,10 +73,11 @@ export default function App() {
           }
           loadStatus()
         }
-      } catch (err) { // Added err parameter for better logging
-        console.error('Polling index failed:', err) // Added console.error
+      } catch (err) {
+        console.error('Polling index failed:', err)
         clearInterval(interval)
         setIndexing(false)
+        setToast({ type: 'error', text: 'Failed to get index status. Please try again.' })
       }
     }, 1500)
   }

@@ -16,6 +16,7 @@ class Settings(BaseModel):
             ".git", "__pycache__", "node_modules", ".venv",
             "venv", "dist", "build", ".mypy_cache", ".pytest_cache",
             ".tox", "egg-info", ".eggs", ".pythonlibs",
+            ".cache", ".upm", ".config", ".local", "attached_assets",
         ]
     )
     ignore_extensions: list[str] = Field(
@@ -27,6 +28,7 @@ class Settings(BaseModel):
             ".pdf", ".doc", ".docx", ".xls", ".xlsx",
             ".exe", ".dll", ".bin", ".dat",
             ".lock", ".woff", ".woff2", ".ttf", ".eot",
+            ".map",
         ]
     )
 

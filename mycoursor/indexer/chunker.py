@@ -72,8 +72,10 @@ def _walk_files(root: str, settings: Settings) -> list[str]:
     paths: list[str] = []
     ignore = set(settings.ignore_dirs)
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in ignore]
+        dirnames[:] = [d for d in dirnames if d not in ignore and not d.startswith(".")]
         for fname in filenames:
+            if fname.startswith("."):
+                continue
             full = os.path.join(dirpath, fname)
             if _is_text_file(full, settings):
                 paths.append(full)

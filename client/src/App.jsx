@@ -11,6 +11,8 @@ export default function App() {
   const [tab, setTab] = useState('chat')
   const [indexing, setIndexing] = useState(false)
   const [toast, setToast] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(true)
 
   useEffect(() => {
     loadTree()
@@ -78,9 +80,14 @@ export default function App() {
       {/* Main layout */}
       <div className="layout">
         {/* Sidebar - file explorer */}
-        <aside className="sidebar">
-          <div className="sidebar-title">Explorer</div>
-          <FileTree tree={tree} onSelect={openFile} activePath={file?.path} />
+        <aside className={`sidebar ${sidebarOpen ? '' : 'collapsed'}`}>
+          <div className="sidebar-header">
+            <span className="sidebar-title">Explorer</span>
+            <button className="collapse-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              {sidebarOpen ? '◂' : '▸'}
+            </button>
+          </div>
+          {sidebarOpen && <FileTree tree={tree} onSelect={openFile} activePath={file?.path} />}
         </aside>
 
         {/* Center - code viewer */}
@@ -108,18 +115,25 @@ export default function App() {
         </main>
 
         {/* Right panel - chat / search */}
-        <aside className="panel">
-          <div className="panel-tabs">
-            <button className={`panel-tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>
-              AI Chat
+        <aside className={`panel ${panelOpen ? '' : 'collapsed'}`}>
+          <div className="panel-header">
+            <button className="collapse-btn" onClick={() => setPanelOpen(!panelOpen)}>
+              {panelOpen ? '▸' : '◂'}
             </button>
-            <button className={`panel-tab ${tab === 'search' ? 'active' : ''}`} onClick={() => setTab('search')}>
-              Search
-            </button>
+            {panelOpen && (
+              <div className="panel-tabs">
+                <button className={`panel-tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>
+                  AI Chat
+                </button>
+                <button className={`panel-tab ${tab === 'search' ? 'active' : ''}`} onClick={() => setTab('search')}>
+                  Search
+                </button>
+              </div>
+            )}
           </div>
 
-          {tab === 'chat' && <ChatPanel />}
-          {tab === 'search' && <SearchPanel onFileSelect={openFile} />}
+          {panelOpen && tab === 'chat' && <ChatPanel />}
+          {panelOpen && tab === 'search' && <SearchPanel onFileSelect={openFile} />}
         </aside>
       </div>
 

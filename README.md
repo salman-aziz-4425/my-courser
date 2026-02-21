@@ -4,8 +4,6 @@ An AI powered code assistant with an IDE-like web interface. Index your codebase
 
 Built with React + FastAPI. Uses local TF-IDF embeddings for semantic search and Gemini for AI chat.
 
-![Welcome Screen](screenshots/welcome.png)
-
 ---
 
 ## Features
@@ -18,8 +16,6 @@ Browse your project files in the sidebar and view any file with full syntax high
 - Syntax highlighting with line numbers
 - Collapsible sidebar for more screen space
 
-![Code Viewer](screenshots/code-viewer.png)
-
 ### AI Chat with Code Editing
 
 Ask the AI anything about your codebase. It understands your project structure, reads relevant files, and can suggest code changes with one-click Apply.
@@ -28,9 +24,7 @@ Ask the AI anything about your codebase. It understands your project structure, 
 - Streaming responses (tokens appear in real-time)
 - Edit blocks with Apply button for direct code changes
 - Diff preview showing what will change (red = removed, green = added)
-
-![AI Chat](screenshots/ai-chat.png)
-
+- 
 ### Typewriter Animation
 
 When you apply an AI-suggested code change, the modified lines appear with a typewriter animation — characters type in one by one with a green glow and blinking cursor, so you can see exactly what changed.
@@ -49,8 +43,6 @@ Search your codebase by meaning, not just keywords. The search uses TF-IDF embed
 - Results ranked by relevance score
 - Click any result to jump to that file
 - Shows file path, line range, and code preview
-
-![Semantic Search](screenshots/semantic-search.png)
 
 ### Code Editing
 

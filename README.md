@@ -1,6 +1,6 @@
 # mycoursor
 
-An AI-powered code assistant with an IDE-like web interface. Index your codebase, ask questions about your code, and let AI make edits directly — all from your browser.
+An AI powered code assistant with an IDE-like web interface. Index your codebase, ask questions about your code, and let AI make edits directly — all from your browser.
 
 Built with React + FastAPI. Uses local TF-IDF embeddings for semantic search and Gemini for AI chat.
 

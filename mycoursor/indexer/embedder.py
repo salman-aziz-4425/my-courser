@@ -78,6 +78,9 @@ def _get_or_load_model(settings: Settings) -> LocalEmbedder | None:
     return None
 
 
+FIXED_DIM = 64
+
+
 def embed_chunks(chunks: list[Chunk], settings: Settings) -> list[list[float]]:
     global _model_cache
     texts = []
@@ -85,7 +88,7 @@ def embed_chunks(chunks: list[Chunk], settings: Settings) -> list[list[float]]:
         header = f"# {c.file_path} (lines {c.start_line}-{c.end_line})\n"
         texts.append(header + c.text)
 
-    dim = min(settings.embedding_dim, len(texts) - 1) if len(texts) > 1 else 1
+    dim = min(FIXED_DIM, len(texts) - 1) if len(texts) > 1 else 1
     model = LocalEmbedder(dim=dim)
     vectors = model.fit_transform(texts)
     model.save(MODEL_PATH)

@@ -43,9 +43,12 @@ client/                  # React + Vite frontend
 - `GET /api/status` - System status and index info
 - `GET /api/tree` - Project file tree
 - `GET /api/file?path=...` - File content
-- `POST /api/index` - Re-index the project
+- `PUT /api/file` - Save file changes (`{ path, content }`)
+- `POST /api/index` - Re-index the project (background)
+- `GET /api/index/status` - Check indexing progress
 - `POST /api/search` - Semantic search (`{ query, top_k }`)
-- `POST /api/chat` - AI chat with streaming SSE (`{ question }`)
+- `POST /api/chat` - AI chat with streaming SSE (`{ question, file_path }`)
+- `POST /api/apply` - Apply AI-generated edit blocks (`{ file_path, original, updated }`)
 
 ## Environment
 - `DATABASE_URL` - PostgreSQL (auto-provided by Replit)
@@ -59,6 +62,11 @@ client/                  # React + Vite frontend
 - Point-to-point functionality (no bloat)
 
 ## Recent Changes
+- 2026-02-21: Added AI-powered code editing (Apply button on edit blocks in chat)
+- 2026-02-21: Added file editing in CodeViewer (Edit/Save/Cancel with Ctrl+S)
+- 2026-02-21: Fixed vector dimension mismatch (fixed 64-dim embeddings)
+- 2026-02-21: Fixed indexer to skip .cache and hidden directories
+- 2026-02-21: Added background indexing with polling
 - 2026-02-21: Added React + Vite frontend with IDE layout
 - 2026-02-21: Switched backend from Flask to FastAPI
 - 2026-02-20: Switched to local TF-IDF embeddings + Replit Gemini integration

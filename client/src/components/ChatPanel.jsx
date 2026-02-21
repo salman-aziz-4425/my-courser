@@ -101,7 +101,7 @@ export default function ChatPanel({ currentFile, onFileUpdated }) {
       if (res.ok) {
         const data = await res.json()
         setAppliedEdits((prev) => ({ ...prev, [editKey]: 'applied' }))
-        if (onFileUpdated) onFileUpdated(data)
+        if (onFileUpdated) onFileUpdated(data, { original: edit.original, updated: edit.updated })
       } else {
         const err = await res.json()
         setAppliedEdits((prev) => ({ ...prev, [editKey]: 'error' }))

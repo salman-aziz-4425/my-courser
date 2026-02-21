@@ -478,6 +478,96 @@ body {
   color: var(--green);
 }
 
+/* ---- Typewriter animation ---- */
+.typewriter-active {
+  padding: 0 !important;
+}
+
+.typewriter-block {
+  display: flex;
+  background: rgba(166, 227, 161, 0.06);
+  border-left: 3px solid var(--green);
+  position: relative;
+  overflow: hidden;
+}
+
+.typewriter-block::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(166, 227, 161, 0.08) 0%, transparent 100%);
+  animation: typewriterGlow 1.5s ease-in-out infinite alternate;
+}
+
+.typewriter-done {
+  animation: typewriterFadeOut 0.8s ease forwards;
+}
+
+.typewriter-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  min-width: 44px;
+  text-align: right;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  user-select: none;
+  opacity: 0.5;
+}
+
+.typewriter-ln {
+  padding: 0 12px 0 8px;
+}
+
+.typewriter-code {
+  flex: 1;
+  padding: 8px 16px 8px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  position: relative;
+  z-index: 1;
+}
+
+.typewriter-revealed {
+  color: var(--green);
+}
+
+.typewriter-cursor {
+  color: var(--green);
+  animation: cursorBlink 0.5s step-end infinite;
+  font-weight: bold;
+}
+
+.typewriter-hidden {
+  visibility: hidden;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes typewriterGlow {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+@keyframes typewriterFadeOut {
+  0% {
+    background: rgba(166, 227, 161, 0.06);
+    border-left-color: var(--green);
+  }
+  100% {
+    background: transparent;
+    border-left-color: transparent;
+  }
+}
+
 /* ---- Loading spinner ---- */
 .spinner {
   display: inline-block;

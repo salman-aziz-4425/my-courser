@@ -13,6 +13,7 @@ export default function App() {
   const [toast, setToast] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [panelOpen, setPanelOpen] = useState(true)
+  const [pendingEdit, setPendingEdit] = useState(null)
 
   useEffect(() => {
     loadTree()
@@ -48,12 +49,15 @@ export default function App() {
   }
 
   async function runIndex() {
+    console.log('runIndex called');
     setIndexing(true)
     setToast({ type: 'info', text: 'Indexing started...' })
     try {
       await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      console.log('API call to /api/index successful');
       pollIndex()
     } catch (err) {
+      console.error('runIndex failed:', err);
       setToast({ type: 'error', text: 'Index failed' })
       setIndexing(false)
     }
@@ -114,7 +118,7 @@ export default function App() {
         {/* Center - code viewer */}
         <main className="editor-area">
           {file ? (
-            <CodeViewer file={file} onSave={(updated) => { setFile(updated); setToast({ type: 'success', text: 'File saved' }) }} />
+            <CodeViewer file={file} pendingEdit={pendingEdit} onAnimationDone={() => setPendingEdit(null)} onSave={(updated) => { setFile(updated); setToast({ type: 'success', text: 'File saved' }) }} />
           ) : (
             <div className="welcome">
               <h1>&#9670; mycoursor</h1>
@@ -153,7 +157,7 @@ export default function App() {
             )}
           </div>
 
-          {panelOpen && tab === 'chat' && <ChatPanel currentFile={file} onFileUpdated={(updated) => { setFile(updated); setToast({ type: 'success', text: 'Changes applied!' }) }} />}
+          {panelOpen && tab === 'chat' && <ChatPanel currentFile={file} onFileUpdated={(updated, editInfo) => { setFile(updated); setPendingEdit(editInfo || null); setToast({ type: 'success', text: 'Changes applied!' }) }} />}
           {panelOpen && tab === 'search' && <SearchPanel onFileSelect={openFile} />}
         </aside>
       </div>

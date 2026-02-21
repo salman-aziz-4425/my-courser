@@ -23,18 +23,103 @@ const LANG_MAP = {
   sql: 'sql',
 }
 
-export default function CodeViewer({ file, onSave }) {
+export default function CodeViewer({ file, pendingEdit, onAnimationDone, onSave }) {
   const [editing, setEditing] = useState(false)
   const [content, setContent] = useState('')
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [animState, setAnimState] = useState(null)
   const textareaRef = useRef(null)
+  const animTimerRef = useRef(null)
+  const fadeTimerRef = useRef(null)
+  const codeContentRef = useRef(null)
 
   useEffect(() => {
     setEditing(false)
     setContent(file?.content || '')
     setDirty(false)
   }, [file?.path])
+
+  useEffect(() => {
+    if (animTimerRef.current) clearInterval(animTimerRef.current)
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
+
+    if (!pendingEdit || !file) return
+
+    const updatedText = pendingEdit.updated.trimEnd()
+    const originalText = pendingEdit.original.trimEnd()
+
+    if (!updatedText) {
+      if (onAnimationDone) onAnimationDone()
+      return
+    }
+
+    const fileContent = file.content
+    let idx = -1
+
+    if (originalText) {
+      const origIdx = fileContent.indexOf(updatedText)
+      if (origIdx !== -1) {
+        idx = origIdx
+      }
+    }
+
+    if (idx === -1) {
+      idx = fileContent.indexOf(updatedText)
+    }
+
+    if (idx === -1) {
+      if (onAnimationDone) onAnimationDone()
+      return
+    }
+
+    const beforeText = fileContent.substring(0, idx)
+    const startLine = beforeText.split('\n').length
+    const updatedLines = updatedText.split('\n')
+    const endLine = startLine + updatedLines.length - 1
+
+    setAnimState({
+      startLine,
+      endLine,
+      text: updatedText,
+      revealedChars: 0,
+      totalChars: updatedText.length,
+      done: false,
+    })
+
+    let chars = 0
+    const speed = Math.max(5, Math.min(20, 1500 / updatedText.length))
+
+    animTimerRef.current = setInterval(() => {
+      chars += 3
+      if (chars >= updatedText.length) {
+        chars = updatedText.length
+        clearInterval(animTimerRef.current)
+        animTimerRef.current = null
+        setAnimState(prev => prev ? { ...prev, revealedChars: chars, done: true } : null)
+        fadeTimerRef.current = setTimeout(() => {
+          fadeTimerRef.current = null
+          setAnimState(null)
+          if (onAnimationDone) onAnimationDone()
+        }, 800)
+        return
+      }
+      setAnimState(prev => prev ? { ...prev, revealedChars: chars } : null)
+    }, speed)
+
+    return () => {
+      if (animTimerRef.current) { clearInterval(animTimerRef.current); animTimerRef.current = null }
+      if (fadeTimerRef.current) { clearTimeout(fadeTimerRef.current); fadeTimerRef.current = null }
+    }
+  }, [pendingEdit])
+
+  useEffect(() => {
+    if (!animState || !codeContentRef.current) return
+    const highlightEl = codeContentRef.current.querySelector('.typewriter-block')
+    if (highlightEl) {
+      highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [animState?.startLine])
 
   if (!file) {
     return (
@@ -100,6 +185,59 @@ export default function CodeViewer({ file, onSave }) {
     }
   }
 
+  function renderAnimatedContent() {
+    if (!animState) return null
+
+    const lines = file.content.split('\n')
+    const { startLine, endLine, text, revealedChars, done } = animState
+
+    const beforeLines = lines.slice(0, startLine - 1)
+    const afterLines = lines.slice(endLine)
+    const revealedText = text.substring(0, revealedChars)
+    const hiddenText = text.substring(revealedChars)
+
+    return (
+      <div className="code-content typewriter-active" ref={codeContentRef}>
+        {beforeLines.length > 0 && (
+          <SyntaxHighlighter
+            language={lang}
+            style={oneDark}
+            showLineNumbers
+            startingLineNumber={1}
+            customStyle={{ margin: 0, background: 'transparent', fontSize: 13 }}
+          >
+            {beforeLines.join('\n')}
+          </SyntaxHighlighter>
+        )}
+
+        <div className={`typewriter-block ${done ? 'typewriter-done' : ''}`}>
+          <div className="typewriter-line-numbers">
+            {text.split('\n').map((_, i) => (
+              <div key={i} className="typewriter-ln">{startLine + i}</div>
+            ))}
+          </div>
+          <div className="typewriter-code">
+            <span className="typewriter-revealed">{revealedText}</span>
+            {!done && <span className="typewriter-cursor">█</span>}
+            <span className="typewriter-hidden">{hiddenText}</span>
+          </div>
+        </div>
+
+        {afterLines.length > 0 && (
+          <SyntaxHighlighter
+            language={lang}
+            style={oneDark}
+            showLineNumbers
+            startingLineNumber={endLine + 1}
+            customStyle={{ margin: 0, background: 'transparent', fontSize: 13 }}
+          >
+            {afterLines.join('\n')}
+          </SyntaxHighlighter>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="code-header">
@@ -134,6 +272,8 @@ export default function CodeViewer({ file, onSave }) {
             spellCheck={false}
           />
         </div>
+      ) : animState ? (
+        renderAnimatedContent()
       ) : (
         <div className="code-content">
           <SyntaxHighlighter

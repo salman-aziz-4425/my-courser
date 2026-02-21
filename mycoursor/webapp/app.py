@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +30,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+index_state = {"running": False, "result": None}
+
 
 def _safe_path(path: str) -> str:
     real = os.path.realpath(path)
@@ -53,6 +56,7 @@ def get_status():
         "database": "connected" if s.database_url else "not configured",
         "gemini": "configured" if AI_KEY else "not configured",
         "index": collection_info(s),
+        "indexing": index_state["running"],
     }
 
 
@@ -97,16 +101,40 @@ def get_file(path: str):
     return {"path": safe, "content": content, "lang": LANG_EXTENSIONS.get(ext, "")}
 
 
+def _do_index():
+    try:
+        s = load_settings()
+        clear_table(s)
+        chunks = chunk_repository(PROJECT_ROOT, s)
+        if not chunks:
+            index_state["result"] = {"chunks": 0, "message": "No files found."}
+            return
+        vectors = embed_chunks(chunks, s)
+        count = upsert_chunks(chunks, vectors, s)
+        index_state["result"] = {"chunks": count, "message": f"Indexed {count} chunks."}
+    except Exception as e:
+        index_state["result"] = {"chunks": 0, "message": f"Error: {e}"}
+    finally:
+        index_state["running"] = False
+
+
 @app.post("/api/index")
 def run_index():
-    s = load_settings()
-    clear_table(s)
-    chunks = chunk_repository(PROJECT_ROOT, s)
-    if not chunks:
-        return {"chunks": 0, "message": "No files found."}
-    vectors = embed_chunks(chunks, s)
-    count = upsert_chunks(chunks, vectors, s)
-    return {"chunks": count, "message": f"Indexed {count} chunks."}
+    if index_state["running"]:
+        return {"message": "Indexing already in progress..."}
+    index_state["running"] = True
+    index_state["result"] = None
+    thread = threading.Thread(target=_do_index, daemon=True)
+    thread.start()
+    return {"message": "Indexing started..."}
+
+
+@app.get("/api/index/status")
+def index_status():
+    return {
+        "running": index_state["running"],
+        "result": index_state["result"],
+    }
 
 
 @app.post("/api/search")

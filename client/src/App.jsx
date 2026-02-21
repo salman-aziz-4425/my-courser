@@ -49,16 +49,34 @@ export default function App() {
 
   async function runIndex() {
     setIndexing(true)
-    setToast({ type: 'info', text: 'Indexing project...' })
+    setToast({ type: 'info', text: 'Indexing started...' })
     try {
-      const res = await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-      const data = await res.json()
-      setToast({ type: 'success', text: data.message })
-      loadStatus()
+      await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      pollIndex()
     } catch (err) {
       setToast({ type: 'error', text: 'Index failed' })
+      setIndexing(false)
     }
-    setIndexing(false)
+  }
+
+  function pollIndex() {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/index/status')
+        const data = await res.json()
+        if (!data.running) {
+          clearInterval(interval)
+          setIndexing(false)
+          if (data.result) {
+            setToast({ type: data.result.chunks > 0 ? 'success' : 'error', text: data.result.message })
+          }
+          loadStatus()
+        }
+      } catch {
+        clearInterval(interval)
+        setIndexing(false)
+      }
+    }, 1500)
   }
 
   const chunks = status?.index?.chunks_count ?? 0
